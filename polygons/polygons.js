@@ -1,22 +1,38 @@
-  //INITIAL////////////////////////
-  var map;
-  var creator;
-
-  function initialize() {
-      var mapOptions = {
-        center: new google.maps.LatLng(-33.14215, 18.02749),
-        zoom: 16,
-        mapTypeId: google.maps.MapTypeId.ROADMAP
-      };
-      map = new google.maps.Map(document.getElementById("map_canvas"),
-          mapOptions);
+  function initialize(container) {
+  var options = {
+        mapTypeControlOptions: {
+      mapTypeIds: [google.maps.MapTypeId.ROADMAP, google.maps.MapTypeId.TERRAIN],
+      style: google.maps.MapTypeControlStyle.DROPDOWN_MENU
+        }
   }
+  map = new google.maps.Map(document.getElementById('map'));
+  map.setCenter(new google.maps.LatLng(-33.14215, 18.02749));
+  map.setZoom(16);
+  map.setMapTypeId( google.maps.MapTypeId.ROADMAP );
 
-  google.maps.event.addDomListener(window, 'load', initialize);
+// with is not so good as it add a new element in scope chain
+// but i like the syntax
 
-  /////////////////////////////////
-
+  with(MapToolbar){
+      with(buttons){
+        $hand = document.getElementById("hand_b");
+        $shape = document.getElementById("shape_b");
+        $line = document.getElementById("line_b");
+        $placemark = document.getElementById("placemark_b");
+      }
+      $featureTable = document.getElementById("featuretbody");
+      select("hand_b");
+  }
   
+  MapToolbar.polyClickEvent = google.maps.event.addListener(map, 'click',  function(event){
+    if( !MapToolbar.isSelected(MapToolbar.buttons.$shape) && !MapToolbar.isSelected(MapToolbar.buttons.$line) ) return;
+      if(MapToolbar.currentFeature){
+        MapToolbar.addPoint(event, MapToolbar.currentFeature);
+      }
+  });
+}
+
+
 
   function simplePolygon(){
     // create an array with the coordinates for the county boundary, note that the 1st and last are the same point
@@ -53,13 +69,31 @@
     // create an instance of Polyline using the county coordinates with desired color, opacity and width(weight) and add to the map
     var countyLine = new google.maps.Polyline({
       path: countyCoordinates,
-      strokeColor: "#0000FF",
+      strokeColor: "#ff00ff",
       strokeOpacity: 1.0,
       strokeWeight: 2
     });
     countyLine.setMap(map);
   }
+  /*
+  var map;
+  var creator;
+
+  function initialize() {
+      var mapOptions = {
+        center: new google.maps.LatLng(-33.14215, 18.02749),
+        zoom: 16,
+        mapTypeId: google.maps.MapTypeId.ROADMAP
+      };
+      map = new google.maps.Map(document.getElementById("map_canvas"),
+          mapOptions);
+  }
+
+  google.maps.event.addDomListener(window, 'load', initialize);
+
+  /////////////////////////////////
+
 
   function interactiveEditor(){
     creator = new PolygonCreator(map);
-  }
+  } */

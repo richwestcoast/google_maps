@@ -1,15 +1,46 @@
 <!-- Requirements -->
 <script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script>
 <script type="text/javascript" src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
+<link href="styling.css" media="all" rel="stylesheet" type="text/css">
 
 <!-- Example js -->
 <script type="text/javascript" src="polygons.js"></script>
 
-<!-- https://github.com/dilab/v3-polygon-shape-creator -->
+<!-- http://nettique.free.fr/gmap/toolbar.html -->
 <script type="text/javascript" src="polygonCreator.js"></script>
 <!--                                                   -->
 
-<a href="javascript: simplePolygon()">Simple polygon</a> 
-| <a href="javascript: interactiveEditor()">Interactive polygon creator</a>
+<script type="text/javascript" src="lib/mapToolbar.js"></script>
 
-<div id="map_canvas" style="width: 100%; height:100%"></div>
+  </head>
+
+  <table>
+    <tr>
+      <td><div id="hand_b"onclick="MapToolbar.stopEditing()"/></td>
+      <td><div id="placemark_b" onclick="MapToolbar.initFeature('placemark')"/></td>
+      <td><div id="line_b" onclick="MapToolbar.initFeature('line')"/></td>
+      <td><div id="shape_b" onclick="MapToolbar.initFeature('shape')"/></td>
+    </tr>
+  </table>
+
+
+<table>
+  <tr style="vertical-align:top">
+    <td style="width:15em">
+      <input type="hidden" id="featuredetails" rows=2></input>
+       <table id ="featuretable">
+       <tbody id="featuretbody"></tbody>
+      </table>
+    </td>
+    <td>
+      <div id="map" style="width: 1160px; height: 800px"></div>
+    </td>
+  </tr>
+</table>
+
+<script type="text/javascript">
+  initialize();
+</script>
+
+</body>
+</html>

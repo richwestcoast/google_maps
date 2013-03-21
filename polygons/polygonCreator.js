@@ -1,321 +1,382 @@
- 	 /*
-	  * Polygon creator class
-	  * Developed by The Di Lab
-	  * www.the-di-lab.com
-	  * 22.06.2010
-	  */
-	 function PolygonCreator(map){
-	 	 //create pen to draw on map
-		 this.map = map;
-		 this.pen = new Pen(this.map);
-		 var thisOjb=this;
-		 this.event=google.maps.event.addListener(thisOjb.map, 'click', function(event) { 
-					thisOjb.pen.draw(event.latLng);
-		 });
-		 
-		 this.showData = function(){
-		 	return this.pen.getData();
-		 }
-		 
-		 this.showColor = function(){
-		 	return this.pen.getColor();
-		 }
-		 
-		 //destroy the pen
-		 this.destroy = function(){
-		 	this.pen.deleteMis();
-			if(null!=this.pen.polygon){
-				this.pen.polygon.remove();
-			}
-			google.maps.event.removeListener(this.event);
-		 }
-	 }	 
-	 /*
-	  * pen class
-	  */
-	 function Pen(map){
-	 	this.map= map;
-	 	this.listOfDots = new Array();
-		this.polyline =null;
-		this.polygon = null;
-		this.currentDot = null;
-		//draw function
-		this.draw = function(latLng){
-			if (null != this.polygon) {
-				alert('Click Reset to draw another');
-			}else {
-				if (this.currentDot != null && this.listOfDots.length > 1 && this.currentDot == this.listOfDots[0]) {
-					this.drawPloygon(this.listOfDots);
-				}else {
-					//remove previous line
-					if(null!=this.polyline){
-						this.polyline.remove();
-					}
-					//draw Dot
-					var dot = new Dot(latLng, this.map, this);
-					this.listOfDots.push(dot);
-					//draw line
-					if(this.listOfDots.length > 1){
-						this.polyline = new Line(this.listOfDots, this.map);
-					}
-				}
-			}
-		}
-		//draw ploygon
-		this.drawPloygon = function (listOfDots,color,des,id){
-			this.polygon = new Polygon(listOfDots,this.map,this,color,des,id);
-			this.deleteMis();
-		}
-		//delete all dots and polylines
-		this.deleteMis = function(){
-			//delete dots
-			$.each(this.listOfDots, function(index, value){
-				value.remove();
-			});
-			this.listOfDots.length=0;
-			//delete lines
-			if(null!=this.polyline){
-				this.polyline.remove();
-				this.polyline=null;
-			}
-		}
-		//cancel
-		this.cancel = function(){
-			if(null!=this.polygon){
-				(this.polygon.remove());
-			}
-			this.polygon=null;
-			this.deleteMis();
-		}
-		//setter		
-		this.setCurrentDot = function(dot){
-			this.currentDot = dot;
-		}
-		//getter
-		this.getListOfDots = function(){
-			return this.listOfDots;
-		}
-		//get plots data
-		this.getData = function(){
-			if(this.polygon!=null){
-				var data ="";
-				var paths = this.polygon.getPlots();
-				//get paths
-				paths.getAt(0).forEach(function(value, index){
-					data+=(value.toString());
-				});
-				return data;
-			}else {
-				return null;
-			}
-		}
-		//get color
-		this.getColor = function(){
-				if(this.polygon!=null){
-					var color = this.polygon.getColor();
-					return color;
-				}else {
-					return null;
-				}
-			
-		}
-	 }
-	 
-	 /* Child of Pen class
-	  * dot class
-	  */
-	 function Dot(latLng,map,pen){
-	 	//property
-	 	this.latLng=latLng;
-		this.parent = pen;
-		
-		this.markerObj = new google.maps.Marker({
-			      position: this.latLng, 
-			      map: map
-	 	});	
-		
-		//closure
-		this.addListener = function(){
-				var parent=this.parent;
-				var thisMarker=this.markerObj;
-				var thisDot=this;
-				google.maps.event.addListener(thisMarker, 'click', function() { 
-				    parent.setCurrentDot(thisDot);
-					parent.draw(thisMarker.getPosition());
-				});				
-		}	
-		this.addListener();
-		
-		//getter 
-		this.getLatLng = function(){
-				return this.latLng;
-		}
-			
-		this.getMarkerObj = function(){
-				return this.markerObj;
-		}
-		
-		this.remove = function(){
-			this.markerObj.setMap(null);
-		}
-	 }
-	 
-	 /* Child of Pen class
-	  * Line class
-	  */
-	 function Line(listOfDots,map){
-	 	this.listOfDots = listOfDots;
-		this.map = map;
-		this.coords = new Array();
-		this.polylineObj=null;
-		
-		if (this.listOfDots.length > 1) {
-			var thisObj=this;
-			$.each(this.listOfDots, function(index, value){
-				thisObj.coords.push(value.getLatLng());
-			});
-			
-			this.polylineObj  = new google.maps.Polyline({
-		      path: this.coords,
-		      strokeColor: "#FF0000",
-		      strokeOpacity: 1.0,
-		      strokeWeight: 2,
-			  map: this.map
-		    });
+var map;
+
+
+
+/*
+ * MapToolbar
+ * a literal object
+ *  - act as a container that will share one or more Feature instance
+ *  - act as a namespace
+ */ 
+
+var MapToolbar = {
+
+//reorder index of a poly markers array
+
+    reindex:function(markers){
+		    markers.forEach(function(marker, index){
+			    marker.index = index;
+		    });			
+    },
+
+//get point at middle distance between 2 point
+
+    getMidPoint: function(){
+	    var lat = (arguments[0].lat() + arguments[1].lat()) / 2;
+	    var lng = (arguments[0].lng() + arguments[1].lng()) / 2;		
+	    return new google.maps.LatLng(lat, lng);		
+    },
+
+//currently edited feature
+
+    currentFeature: null,
+
+//add a point to a poly, 'e' can be a click event or a latLng object
+
+    addPoint : function(e, poly, index) {
+	    var e = (typeof e.latLng != "undefined")? e.latLng : e,
+		    image = new google.maps.MarkerImage('images/marker-edition.png',
+		    new google.maps.Size(9, 9),
+		    new google.maps.Point(0, 0),
+		    new google.maps.Point(5, 5)),
+	    imageover = new google.maps.MarkerImage('images/marker-edition-over.png',
+		    new google.maps.Size(9, 9),
+		    new google.maps.Point(0, 0),
+		    new google.maps.Point(5, 5)),
+			    path = poly.getPath(),
+			    index = (typeof index != "undefined")? index : path.length,
+			    markers = (poly.markers)? poly.markers : new google.maps.MVCArray, 
+	    marker = new google.maps.Marker({
+				    position: e,
+				    map: map,
+				    draggable: true,
+				    icon: image
+	    });
+
+	    marker.index = index;    
+	    path.insertAt(index, e);
+	    markers.insertAt(index, marker)
+	    if(arguments[2]){
+		    MapToolbar.reindex(markers);	
 	    }
+
+//click on a polymarker will delete it
+
+	    google.maps.event.addListener(marker, 'click', function() {
+		    marker.setMap(null);
+		    markers.removeAt(marker.index);
+		    path.removeAt(marker.index);
+		    MapToolbar.reindex(markers);				
+		    if(markers.getLength() == 0){
+			    MapToolbar.removeFeature(poly.id);
+		    }
+	    });
+
+/*
+      google.maps.event.addListener(marker, 'dragstart', function() {
+				MapToolbar.currentlyDragging = true;
+	  	})
+*/		
+      google.maps.event.addListener(marker, 'position_changed', function() {
+ 			  path.setAt(marker.index, marker.getPosition());
+	  	})
+				
+	    google.maps.event.addListener(marker, 'dragend', function() {
+				//MapToolbar.currentlyDragging = false;
+		    path.setAt(marker.index, marker.getPosition());
+		    var position = marker.getPosition(),
+				    p;
+
+//get previous point
+
+		    if(typeof path.getAt(marker.index-1) != "undefined"){
+			    var m1 = path.getAt(marker.index -1);
+					    p = MapToolbar.getMidPoint(position, m1);		
+					    MapToolbar.addPoint(p, poly, marker.index);						
+		    }
+
+// get next point
+
+		    if(typeof path.getAt(marker.index+1) != "undefined"){
+			    var m2 = path.getAt(marker.index+1);
+					    p = MapToolbar.getMidPoint(position, m2);		
+					    MapToolbar.addPoint(p, poly, marker.index+1);						
+		    }			
+	    });
+
+	    google.maps.event.addListener(marker, 'mouseover', function() {
+				this.setIcon(imageover);
+	    });   
+	    
+	    google.maps.event.addListener(marker, 'mouseout', function() {
+				this.setIcon(image);
+	    });       
+    },	
+
+//append a DOM node to $featureTable
+
+    addFeatureEntry: function(name, color) {
+			currentRow_ = document.createElement("tr");
+	
+			var colorCell = document.createElement("td");
+			currentRow_.appendChild(colorCell);
+			colorCell.style.backgroundColor = color;
+			colorCell.style.width = "1em";
+	
+			var nameCell = document.createElement("td");
+			currentRow_.appendChild(nameCell);
+			nameCell.innerHTML = name;
+			nameCell.onclick = new Function("MapToolbar.setMapCenter('"+name+"')");
+	
+			var descriptionCell = document.createElement("td");
+			currentRow_.appendChild(descriptionCell);
+			this.$featureTable.appendChild(currentRow_);
+	
+			var deleteCell = document.createElement("td");
+			deleteCell.id = name;
+			deleteCell.onclick = new Function("MapToolbar.removeFeature('"+name+"')");
+			deleteCell.innerHTML = "delete";
+			currentRow_.appendChild(deleteCell);
+			this.$featureTable.appendChild(currentRow_);	    
 		
-		this.remove = function(){
-			this.polylineObj.setMap(null);
-		}
-	 }
-	 
-	 /* Child of Pen class
-	  * polygon class
-	  */
-	 function Polygon(listOfDots,map,pen,color){
-		this.listOfDots = listOfDots;
-		this.map = map;
-		this.coords = new Array();
-		this.parent = pen;
-		this.des = 'Hello';
+			return {row:currentRow_, desc: descriptionCell, color: colorCell};
+    },
+	    
+//edition buttons
+ 
+    buttons: {
+			$hand: null,
+			$shape: null,
+			$line: null,
+			$placemark: null
+    },
+
+//click event for line and shape edition
+
+    polyClickEvent: null,
+
+//an array of predefined colors
+
+    colors:[["red", "#ff0000"], ["orange", "#ff8800"], ["green","#008000"], ["blue", "#000080"], ["purple", "#800080"]],
+    colorIndex: 0,
+
+//contains list of overlay that were added to the map
+//and that are displayed on the sidebar
+
+    $featureTable: document.getElementById("featuretbody"),
+
+    Feature: function(type){
+			if(type == "shape" || type == "line"){
+					this['poly'](type);
+			}else{
+					this[type]();
+			}
+    },
+
+//contains reference for all features added on the map
+
+    features:{
+			placemarkTab: {},
+			lineTab: {},
+			shapeTab: {},
+			overlayTab:{}
+    },
+    
+    getColor: function(named) {
+  		return this.colors[(this.colorIndex++) % this.colors.length][named ? 0 : 1];
+	},
+    
+    getIcon: function(color) { 
+		var icon = new google.maps.MarkerImage("http://google.com/mapfiles/ms/micons/" + color + ".png",
+		  new google.maps.Size(32, 32),
+	          new google.maps.Point(0,0),
+	          new google.maps.Point(15, 32)
+	        );
+		return icon;
+    },
+    
+//instanciate a new Feature instance and create a reference 
+
+    initFeature: function(type){
+			new MapToolbar.Feature(type);
+    },
+
+//check if a toolbar button is selected
+
+	isSelected: function(el){
+	   return (el.className == "selected"); 
+	},
+ 
+//the map DOM node container
+
+    placemarkCounter: 0,
+    lineCounter:0,
+    shapeCounter:0,
+    
+//remove click events used for poly edition/update
+
+    removeClickEvent: function(){   
+    },
+
+// remove feature from map
+
+    removeFeature : function(id){
+	    var type  = id.split('_')[0];
+	    var feature = MapToolbar.features[type+'Tab'][id];
+	    feature.$el.row.parentNode.removeChild(feature.$el.row);
+	    delete  MapToolbar.features[type+'Tab'][id];
+	    switch(type){
+		    case "placemark":
+			    feature.setMap(null);
+		    break;
+		    default:
+			    feature.markers.forEach(function(marker, index){
+				    marker.setMap(null);
+			    });
+			    feature.setMap(null);				
+		    break;
+	    }
+	    MapToolbar.select('hand_b');
+    },
+
+//toolbar buttons selection
+
+    select: function (buttonId){
+	    MapToolbar.buttons.$hand.className="unselected";
+	    MapToolbar.buttons.$shape.className="unselected";
+	    MapToolbar.buttons.$line.className="unselected";
+	    MapToolbar.buttons.$placemark.className="unselected";
+	    document.getElementById(buttonId).className="selected";
+    },
+
+    setMapCenter: function(featureName){
+    	var type = featureName.split('_')[0];
+    	if(type == 'shape' || type=='line'){
+    		MapToolbar.currentFeature = MapToolbar.features[type + 'Tab'][featureName]; 
+    		var point = MapToolbar.currentFeature.getPath().getAt(0);
+    	}else if(type == 'placemark'){
+    		MapToolbar.currentFeature = null;
+ 				var point = MapToolbar.features[type + 'Tab'][featureName].getPosition();   		
+    	}
+    	MapToolbar.select(type + '_b');
+			map.setCenter(point);
+    },
+
+//select hand button
+
+    stopEditing: function() {
+      this.removeClickEvent();
+      this.select("hand_b");
+    },
+
+//change marker icon 
+
+    updateMarker: function(marker, cells, color) {
+      if (color) {
+	  marker.setIcon( MapToolbar.getIcon(color) );
+      }
+      var latlng = marker.getPosition();
+      cells.desc.innerHTML = "(" + Math.round(latlng.b * 100) / 100 + ", " + Math.round(latlng.c * 100) / 100 + ")";
+    }
+}
+
+MapToolbar.Feature.prototype.poly = function(type) {
+	var color = MapToolbar.getColor(false),
+			path = new google.maps.MVCArray,
+			poly,
+			self = this,
+			el = type + "_b";
 		
-		
-		
-		var thisObj=this;
-		$.each(this.listOfDots,function(index,value){
-			thisObj.coords.push(value.getLatLng());
+	if(type=="shape"){
+		poly = self.createShape( {strokeWeight: 3, fillColor: color}, path );
+	}else if(type=="line"){
+		poly = self.createLine( {strokeWeight: 3, strokeColor: color }, path );
+	}
+	
+	poly.markers = new google.maps.MVCArray; 
+ 
+/* 
+	google.maps.event.addListener(poly, "mouseover", function(){	
+		poly.markers.forEach(function(polyMarker, index){
+			polyMarker.setVisible(true);
 		});
-		
-		this.polygonObj= new google.maps.Polygon({
-				    paths: this.coords,
-				    strokeColor: "#FF0000",
-				    strokeOpacity: 0.8,
-				    strokeWeight: 2,
-				    fillColor: "#FF0000",
-				    fillOpacity: 0.35,
-					map:this.map
-	  	});
-		
-		this.remove = function(){
-			this.info.remove();
-			this.polygonObj.setMap(null);
-		}
-		
-		//getter
-		this.getContent = function(){
-			return this.des;
-		}
-		
-		
-		this.getPolygonObj= function(){
-			return this.polygonObj;
-		}
-		
-		this.getListOfDots = function (){
-			return this.listOfDots;
-		}
-		
-		this.getPlots = function(){
-			return this.polygonObj.getPaths();
-		}
-		
-		this.getColor=function(){
-			return 	this.getPolygonObj().fillColor;
-		}
-		
-		//setter
-		this.setColor = function(color){
-			return 	this.getPolygonObj().setOptions(
-							{fillColor:color,
-							 strokeColor:color,
-							 strokeWeight: 2
-							 }
-						);
-		}
-		
-		
-		this.info = new Info(this,this.map);
-		
-		//closure		
-		this.addListener = function(){
-				var info=this.info;
-				var thisPolygon=this.polygonObj;
-				google.maps.event.addListener(thisPolygon, 'rightclick', function(event) { 					
-				    info.show(event.latLng);
-				});				
-		}	
-		this.addListener();
-							  
-	 }
-	 	 
-	 /*
-	  * Child of Polygon class
-	  * Info Class
-	  */
-	 function Info(polygon,map){
-	 	this.parent = polygon;
-		this.map = map;
-		
-		this.color =  document.createElement('input');
-		
-		this.button = document.createElement('input');
-		$(this.button).attr('type','button');
-		$(this.button).val("Change Color");
-	    var thisOjb=this;
-		
-		
-		//change color action
-		this.changeColor= function(){
-			thisOjb.parent.setColor($(thisOjb.color).val());
-		}
-		
-		//get content
-		this.getContent = function(){
-			var content = document.createElement('div');
-			
-			$(this.color).val(this.parent.getColor());	
-			$(this.button).click(function(){
-				thisObj.changeColor();
-			});
-			
-			$(content).append(this.color);		
-			$(content).append(this.button);
-			return content;
-		}
-		
-		thisObj=this;
-		this.infoWidObj = new google.maps.InfoWindow({
-				    content:thisObj.getContent()
+	});
+*/
+
+/*
+	google.maps.event.addListener(poly, "mouseout", function(){
+    if (MapToolbar.currentlyDragging) return;
+		poly.markers.forEach(function(polyMarker, index){
+			polyMarker.setVisible(false);
 		});
+	});  
+	
+*/
 		
-		this.show = function(latLng){
-			this.infoWidObj.setPosition(latLng);
-			this.infoWidObj.open(this.map);
-		}
-		
-		this.remove = function(){
-	 		this.infoWidObj.close();
-	 	}
-		
-		
-	 }
+	if(MapToolbar.isSelected(document.getElementById(el))) return;
+	MapToolbar.select(el);
+	MapToolbar.currentFeature = poly;	
+	poly.setMap(map);	  
+	if(!poly.$el){
+		++MapToolbar[type+"Counter"];
+		poly.id = type + '_'+ MapToolbar[type+"Counter"];
+		poly.$el = MapToolbar.addFeatureEntry(poly.id, color);  	
+		MapToolbar.features[type+"Tab"][poly.id] = poly;		 		
+	}
+}
+
+MapToolbar.Feature.prototype.placemark = function() {
+		var marker,	
+		self = this;    
+  	if(MapToolbar.isSelected(MapToolbar.buttons.$placemark)) return;
+  	MapToolbar.select("placemark_b"); 
+		var listener = google.maps.event.addListener(map, "click", function(arg) {
+     console.log(MapToolbar.currentFeature);
+	  if (arg && arg.latLng) {
+	    MapToolbar.select("hand_b");
+	    google.maps.event.removeListener(listener);
+	    self.createMarker(arg.latLng, true);
+	  }
+	});
+}
+
+MapToolbar.Feature.prototype.createMarker = function(point) {
+	var color = MapToolbar.getColor(true),
+	    marker = new google.maps.Marker({
+		position: point, 
+		map: map, 
+		title: "Hello World!",
+		draggable: true,
+		flat: true
+	    }); 
+		    
+	++MapToolbar["placemarkCounter"];
+	marker.id = 'placemark_'+ MapToolbar["placemarkCounter"];
+	marker.$el = MapToolbar.addFeatureEntry(marker.id, color);	     
+	MapToolbar.updateMarker(marker, marker.$el, color);
+	MapToolbar.features['placemarkTab'][marker.id] = marker;
+
+	google.maps.event.addListener(marker, "dragend", function() {
+		MapToolbar.updateMarker(marker, marker.$el);
+	}); 
+	return marker;
+}
+
+MapToolbar.Feature.prototype.createShape = function(opts, path) {
+	var poly;
+	poly = new google.maps.Polygon({
+	    strokeWeight: opts.strokeWeight,
+	    fillColor: opts.fillColor
+	});
+	poly.setPaths(new google.maps.MVCArray([path]));
+	return poly;
+}
+
+MapToolbar.Feature.prototype.createLine = function(opts, path) {
+	var poly = new google.maps.Polyline({
+	    strokeWeight: opts.strokeWeight,
+	    strokeColor: opts.strokeColor
+	}), self = this;  
+	poly.setPath(new google.maps.MVCArray(path));
+	return poly;
+}
