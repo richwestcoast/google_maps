@@ -70,11 +70,17 @@
 
   //console.log(paths);
 
+  var coordinatesComplete = [];
+  var experimentContainer = [];
+  var initialPolys = [];
+  var drawingManager;
+  var map;
+
   function initialize() {
-    var map = new google.maps.Map(document.getElementById("map"), {
+    map = new google.maps.Map(document.getElementById("map"), {
       zoom: 16,
-      center: new google.maps.LatLng(38.8714, -77.0556),
-      mapTypeId: google.maps.MapTypeId.SATELLITE
+      center: new google.maps.LatLng(-33.14215, 18.02749),
+      mapTypeId: google.maps.MapTypeId.ROADMAP
     });
 
     /*var poly = new google.maps.Polygon({
@@ -88,7 +94,7 @@
 
     
 
-    var drawingManager = new google.maps.drawing.DrawingManager({
+    drawingManager = new google.maps.drawing.DrawingManager({
       drawingMode: google.maps.drawing.OverlayType.MARKER,
       drawingControl: true,
       drawingControlOptions: {
@@ -109,35 +115,46 @@
     var polysComplete = [];
     google.maps.event.addListener(drawingManager, 'polygoncomplete', function(polygon) {
       console.log(polygon);
+      coordinatesComplete = [];
+      //console.log(polygon);
       var polys = [];
       var coordinates = [];
 
       coordinates = polygon.getPath().getArray();
 
       $.each(coordinates, function(o, i){ polys.push([i.kb, i.lb]); });
-
-      //console.log(polys);
       
       polysComplete.push(polys);
 
       //polysComplete.push(polys);
-      console.log(polysComplete.toString());
-      var coordinatesComplete = buildGMapCoordinatesFromLatLonArray(polysComplete);
+      //console.log(polysComplete.toString());
+      coordinatesComplete = buildGMapCoordinatesFromLatLonArray(polysComplete);
+      console.log(coordinatesComplete);
+      polygon.setMap(null);
+      $.each(initialPolys, function(i, o){
+        console.log(o.setMap(null));
+      });
+      initialPolys.push(simplePolygon(coordinatesComplete, map))
       //simplePolygon(coordinatesComplete, map)
     });
 
-    var experimentContainer = [];
+    
+
+    
     var experimentCoords = [];
     /*experimentCoords.push([38.872886, -77.054720]);
     experimentCoords.push([38.872602, -77.058046]);
     experimentCoords.push([38.870080, -77.058604]);
     experimentCoords.push([38.868894, -77.055664]);
     experimentCoords.push([38.870598, -77.053346]);*/
-    experimentCoords.push([38.877486,-77.064092]);
-    experimentCoords.push([38.874396,-77.064049]);
-    experimentCoords.push([38.874095,-77.056796]);
-    experimentCoords.push([38.877720,-77.057418]);
-    experimentContainer.push(experimentCoords.reverse());
+    experimentCoords.push([-33.13751525671927,18.024959564208984]);
+    experimentCoords.push([-33.14161182340876,18.02103281021118]);
+    experimentCoords.push([-33.143965466013846,18.02279233932495]);
+    experimentCoords.push([-33.14434276162883,18.032383918762207]);
+    experimentCoords.push([-33.1390245403791,18.031225204467773]);
+    experimentCoords.push([-33.137173867530166,18.02779197692871]);
+    
+    experimentContainer.push(experimentCoords);
     //,,,
     var experimentCoords = [];
     /*experimentCoords.push([38.871684, -77.056780]);
@@ -145,16 +162,18 @@
     experimentCoords.push([38.870915, -77.054891]);
     experimentCoords.push([38.870113, -77.055836]);
     experimentCoords.push([38.870581, -77.057037]);*/
-    experimentCoords.push([38.876801,-77.061946]);
-    experimentCoords.push([38.875064,-77.062182]);
-    experimentCoords.push([38.874914,-77.059693]);
-    experimentCoords.push([38.876751,-77.059586]);
+    experimentCoords.push([-33.14258203487882,18.025367259979248]);
+    experimentCoords.push([-33.13954559656774,18.024466037750244]);
+    experimentCoords.push([-33.13924015021168,18.027019500732422]);
+    experimentCoords.push([-33.14071346989043,18.02959442138672]);
+    experimentCoords.push([-33.1423304996018,18.028135299682617]);
+    
     /*experimentCoords.push([38.871857,-77.05666]);
     experimentCoords.push([38.871867, -77.055449]);
     experimentCoords.push([38.870113, -77.055836]);
     experimentCoords.push([38.87133,-77.05701]);*/
     experimentContainer.push(experimentCoords);   
-    
+    console.log(buildGMapCoordinatesFromLatLonArray(experimentContainer));
     simplePolygon(buildGMapCoordinatesFromLatLonArray(experimentContainer), map);
 
     //poly.setMap(map);
@@ -178,10 +197,12 @@
     //console.log(polygons);
     var poly = new google.maps.Polygon({
       paths: polygons,
-      strokeWeight: 3,
-      fillColor: '#55FF55',
-      fillOpacity: 0.5
+      editable: true,
     });
 
+    console.log(poly);
+
     poly.setMap(map);
+    return poly;
   }
+
