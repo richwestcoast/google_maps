@@ -6,7 +6,7 @@
 <!-- Example js -->
 <script type="text/javascript" src="polygons.js"></script>
 
-<div><input type="submit" id="save" value="Save"></div>
+<div><input type="submit" id="save" value="Save"> <input type="submit" id="load" value="Load"></div>
 
 <div id="map" style="height: 840px"></div>
 
