@@ -19,53 +19,69 @@
 
     $('#save').click(function(){ saveData(); });
     $('#load').click(function(){ loadData(); });
+    $('#saveState').click(function(){ updatePolyPoints(); })
 
     drawingManager = createDrawingManager();
 
     drawingManager.setMap(map);
     
     google.maps.event.addListener(drawingManager, 'polygoncomplete', function(polygon) {
+
+      updatePolyPoints();
       
       coordinatesComplete = [];
       var coordinates = [];
 
       $.each(polygon.getPath().getArray(), function(o, i){ coordinates.push([i.kb, i.lb]); });
-      
       polysComplete.push(coordinates);
-
-      updatePolyPoints();
-
-      coordinatesComplete = buildGMapCoordinatesFromLatLonArray(polysComplete);
-
-      console.log(coordinatesComplete);
+      
       polygon.setMap(null);
-      $.each(visiblePolygons, function(increment, polygon){
-        
-        polygon.setPath([new google.maps.LatLng(25.774252, -80.190262)]);
-        polygon.setMap(null);
 
-        console.log('setting map null' + polysComplete.length);
-      });
-      //visiblePolygons = [];
-      
-      createSimplyPolygon(coordinatesComplete, map)
-      
-
+      constructPolys();
     });
+
+    loadData();
+
   })
 
+  function constructPolys(){
+    coordinatesComplete = buildGMapCoordinatesFromLatLonArray(polysComplete);
+    
+    $.each(visiblePolygons, function(increment, polygon){
+      if(typeof polygon === 'undefined'){
+        return;
+      }else{
+        polygon.setMap(null);
+        console.log('setting map null' + polysComplete.length);
+      }
+    });
+    
+    createSimplyPolygon(coordinatesComplete, map)
+  }
+
   function updatePolyPoints(){
-    //polysComplete = [];
+    polysComplete = [];
     var coordinates = [];
 
     $.each(visiblePolygons, function(increment, polygon){
-      console.log();
-      if(polygon.getPath().getArray().length <= 1){ console.log('skip this poly (map = null)'); }
-      else{
-          coordinates = [];
-          $.each(polygon.getPath().getArray(), function(o, i){ coordinates.push([i.kb, i.lb]); });
-          polysComplete.push(coordinates);
+      if(typeof polygon === 'undefined'){
+        return;
       }
+
+      if(polygon.getMap()){        
+
+        var vertices = polygon.getPaths();
+        console.log(vertices.length);
+        for (var i =0; i < vertices.length; i++) {
+          coordinates = [];
+          $.each(vertices.getAt(i).getArray(), function (inc, polygon){
+            coordinates.push([polygon.kb, polygon.lb]);
+          });
+          polysComplete.push(coordinates);
+        }
+
+      }
+
     })
   }
 
@@ -111,10 +127,8 @@
     }).done(function(jsonData) {
       console.log(jsonData);
       var data = $.parseJSON(jsonData);
-      $.each(data, function(i,o){
-        console.log(o);
-      });
-      console.log(polysComplete);
+      polysComplete = data;
+      constructPolys();
     }); 
   }
 
@@ -141,29 +155,4 @@
       fillColor: '#55FF55',
       fillOpacity: 0.5
     });
-    */
-
-
-
-    /*
-    var experimentCoords = [];
-    experimentCoords.push([-33.13751525671927,18.024959564208984]);
-    experimentCoords.push([-33.14161182340876,18.02103281021118]);
-    experimentCoords.push([-33.143965466013846,18.02279233932495]);
-    experimentCoords.push([-33.14434276162883,18.032383918762207]);
-    experimentCoords.push([-33.1390245403791,18.031225204467773]);
-    experimentCoords.push([-33.137173867530166,18.02779197692871]);
-    experimentContainer.push(experimentCoords);
-    
-    var experimentCoords = [];
-    experimentCoords.push([-33.14258203487882,18.025367259979248]);
-    experimentCoords.push([-33.13954559656774,18.024466037750244]);
-    experimentCoords.push([-33.13924015021168,18.027019500732422]);
-    experimentCoords.push([-33.14071346989043,18.02959442138672]);
-    experimentCoords.push([-33.1423304996018,18.028135299682617]);
-    experimentContainer.push(experimentCoords);  
-  
-    //console.log(buildGMapCoordinatesFromLatLonArray(experimentContainer));
-    //initialPolys.push(createSimplyPolygon(buildGMapCoordinatesFromLatLonArray(experimentContainer), map));
-
     */
